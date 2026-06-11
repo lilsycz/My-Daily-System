@@ -43,6 +43,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .pcount{font-size:11px;color:var(--text3)}
 .pbar-wrap{flex:1;max-width:80px;height:2px;background:var(--border);border-radius:99px}
 .pbar-fill{height:100%;background:var(--teal);border-radius:99px;transition:width .3s}
+.gbar{height:2px;background:var(--border);flex-shrink:0}
+.gbar-fill{height:100%;background:var(--teal);width:0%;transition:width .4s}
 
 /* ── BODY ── */
 .body{display:flex;flex:1;overflow:hidden}
@@ -95,6 +97,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .drop-active{border:1.5px dashed var(--teal) !important;background:rgba(29,158,117,.05)}
 .card.dragging{opacity:.25}
 .lib.lib-dropzone{background:rgba(29,158,117,.09);border-right-color:var(--teal)}
+.trig[contenteditable='true'],.ctitle[contenteditable='true']{outline:none;cursor:text;background:var(--bg3);border-radius:4px;padding:1px 3px;margin:-1px -3px}
 
 /* ── CHECKLIST ── */
 .checklist{padding:0 12px 32px}
@@ -136,6 +139,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
       </div>
     </div>
   </div>
+  <div class="gbar"><div class="gbar-fill" id="gpf"></div></div>
 
   <!-- BODY -->
   <div class="body">
@@ -166,7 +170,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 
 <script>
 // ── DATA ──
-const DOTS = ['#7F77DD','#1D9E75','#1D9E75','#BA7517','#888780','#D85A30','#378ADD','#E0956A','#5BAFD6'];
+const DOTS = ['#BA7517','#7F77DD','#1D9E75','#BA7517','#888780','#D85A30','#378ADD','#E0956A','#5BAFD6'];
 
 const LIB_BLOCKS = [
   {id:'meeting', name:'开会',    dur:60, mn:15,mx:120,fz:false,pills:['准备议题','记录要点'],rule:null},
@@ -186,7 +190,8 @@ const DEFAULT_FLOW = [
   {id:'dinner',   name:'晚饭 + 补剂',trig:'健身后',               pills:['蛋白质优先','碳水减半','镁·Omega-3'],rule:null,                           dur:45,mn:30, mx:60, fz:true},
 ];
 
-const MAX_ACTIVE = 4;
+const INITIAL_ACTIVE = 2;
+let unlockedCount = INITIAL_ACTIVE;
 let wakeMin = 570;
 let flowBlocks = DEFAULT_FLOW.map(d=>({...d}));
 let doneState = flowBlocks.map(()=>false);
@@ -215,19 +220,10 @@ function getTimes(){
   return flowBlocks.map((_,i)=>{const s=c;c+=flowBlocks[i].dur;return{s,e:c}});
 }
 
-// active window: first undone non-fuzzy + up to MAX_ACTIVE-1 after it, including fuzzy
+// active zone: first unlockedCount cards; completing one grows the zone by 1
 function getActiveSet(){
   const set = new Set();
-  let firstUndone = -1;
-  for(let i=0;i<flowBlocks.length;i++){
-    if(!doneState[i]){firstUndone=i;break;}
-  }
-  if(firstUndone === -1) return set;
-  let count = 0;
-  for(let i=firstUndone;i<flowBlocks.length && count<MAX_ACTIVE;i++){
-    set.add(i);
-    count++;
-  }
+  for(let i=0; i<Math.min(unlockedCount, flowBlocks.length); i++) set.add(i);
   return set;
 }
 
@@ -292,15 +288,19 @@ function render(){
     card.className = 'card' + (isActive&&!isDone?' active':'') + (isDone?' done':'') + (isDim?' dim':'');
     if(isActive && !isDone) card.style.borderColor = dotColor;
 
-    // click card to toggle done
+    // single-click toggle done (deferred so dblclick can cancel it)
+    let clickTimer = null;
     card.addEventListener('click', e=>{
       if(e.target.closest('.tstrip')||e.target.closest('.pill')) return;
-      toggleDone(i);
+      if(e.target.isContentEditable) return;
+      clearTimeout(clickTimer);
+      clickTimer = setTimeout(()=>toggleDone(i), 220);
     });
 
-    // drag card out to lib
+    // drag card to reorder or to lib
     card.draggable = true;
     card.addEventListener('dragstart', e=>{
+      if(e.target.isContentEditable){e.preventDefault();return;}
       draggingFlowIdx = i;
       e.dataTransfer.setData('flowIdx', String(i));
       e.dataTransfer.effectAllowed = 'move';
@@ -311,14 +311,42 @@ function render(){
       card.classList.remove('dragging');
     });
 
-    // drag-over for lib blocks
+    // dragover: reorder indicator when dragging a card, drop-active for lib/parked
     card.addEventListener('dragover', e=>{
-      if(draggingFlowIdx !== -1) return;
-      e.preventDefault();card.classList.add('drop-active');
+      if(draggingFlowIdx === i) return;
+      e.preventDefault();
+      if(draggingFlowIdx !== -1){
+        const rect = card.getBoundingClientRect();
+        const pos = e.clientY < rect.top + rect.height/2 ? 'before' : 'after';
+        card.dataset.reorderPos = pos;
+        const c = DOTS[draggingFlowIdx % DOTS.length];
+        card.style.boxShadow = pos==='before' ? `0 -2px 0 0 ${c}` : `0 2px 0 0 ${c}`;
+      } else {
+        card.classList.add('drop-active');
+      }
     });
-    card.addEventListener('dragleave', ()=>card.classList.remove('drop-active'));
+    card.addEventListener('dragleave', ()=>{
+      card.classList.remove('drop-active');
+      card.style.boxShadow='';
+      delete card.dataset.reorderPos;
+    });
     card.addEventListener('drop', e=>{
       card.classList.remove('drop-active');
+      card.style.boxShadow='';
+      const pos = card.dataset.reorderPos||'after';
+      delete card.dataset.reorderPos;
+      if(draggingFlowIdx !== -1 && draggingFlowIdx !== i){
+        const from = draggingFlowIdx;
+        const [b]=flowBlocks.splice(from,1);
+        const [ds]=doneState.splice(from,1);
+        const [ps]=pdoneState.splice(from,1);
+        let to = from<i ? i-1 : i;
+        if(pos==='after') to++;
+        flowBlocks.splice(to,0,b);
+        doneState.splice(to,0,ds);
+        pdoneState.splice(to,0,ps);
+        render(); return;
+      }
       const libIdx = parseInt(e.dataTransfer.getData('libIdx'));
       const parkedIdx = parseInt(e.dataTransfer.getData('parkedIdx'));
       if(!isNaN(libIdx)) { insertLibBlock(libIdx, i); return; }
@@ -328,6 +356,31 @@ function render(){
     const head = document.createElement('div');head.className='chead';
     const checkStyle = isDone ? `background:${dotColor};border-color:${dotColor}` : '';
     head.innerHTML = `<div class="chead-left"><div class="trig">${d.trig||''}</div><div class="ctitle">${d.name}</div></div><div class="ccheck${isDone?' on':''}" style="${checkStyle}"></div>`;
+
+    // double-click title or trig to edit inline
+    head.addEventListener('dblclick', e=>{
+      const el = e.target;
+      if(!el.classList.contains('ctitle')&&!el.classList.contains('trig')) return;
+      clearTimeout(clickTimer);
+      e.stopPropagation();
+      const original = el.textContent;
+      el.contentEditable = 'true';
+      el.focus();
+      const range=document.createRange();range.selectNodeContents(el);
+      const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);
+      function finish(revert){
+        el.contentEditable='false';
+        const val=el.textContent.trim();
+        if(revert||!val){el.textContent=original;}
+        else if(el.classList.contains('ctitle')) flowBlocks[i].name=val;
+        else flowBlocks[i].trig=val;
+      }
+      el.addEventListener('blur',()=>finish(false),{once:true});
+      el.addEventListener('keydown',ke=>{
+        if(ke.key==='Enter'){ke.preventDefault();el.blur();}
+        if(ke.key==='Escape'){finish(true);el.blur();}
+      });
+    });
     card.appendChild(head);
 
     if(d.pills && d.pills.length){
@@ -350,18 +403,20 @@ function render(){
       const r=document.createElement('div');r.className='rule';r.textContent=d.rule;card.appendChild(r);
     }
 
-    const pct = Math.min(100, Math.round(((d.dur-d.mn)/(d.mx-d.mn))*100));
-    const ts = document.createElement('div');
-    ts.className = 'tstrip' + (isActive&&!isDone?' draggable':'');
-    ts.id = 'ts'+i;
-    const fillEl = document.createElement('div');
-    fillEl.className='tstrip-fill';fillEl.id='tf'+i;
-    fillEl.style.cssText=`width:${pct}%;background:${DOTS[i%DOTS.length]};opacity:0.13`;
-    ts.appendChild(fillEl);
-    ts.insertAdjacentHTML('beforeend',`<span class="tval" id="tstart${i}">${hm(s)}</span><span class="tsub">→</span><span class="tval" id="te${i}">${hm(e)}</span><span class="tdur" id="dl${i}">${d.dur}分钟</span>`);
-    ts.addEventListener('click',e=>e.stopPropagation());
-    card.appendChild(ts);
-    if(isActive&&!isDone) requestAnimationFrame(()=>setupDrag(i,d));
+    if(!isDim){
+      const pct = Math.min(100, Math.round(((d.dur-d.mn)/(d.mx-d.mn))*100));
+      const ts = document.createElement('div');
+      ts.className = 'tstrip' + (isActive&&!isDone?' draggable':'');
+      ts.id = 'ts'+i;
+      const fillEl = document.createElement('div');
+      fillEl.className='tstrip-fill';fillEl.id='tf'+i;
+      fillEl.style.cssText=`width:${pct}%;background:${DOTS[i%DOTS.length]};opacity:0.13`;
+      ts.appendChild(fillEl);
+      ts.insertAdjacentHTML('beforeend',`<span class="tval" id="tstart${i}">${hm(s)}</span><span class="tsub">→</span><span class="tval" id="te${i}">${hm(e)}</span><span class="tdur" id="dl${i}">${d.dur}分钟</span>`);
+      ts.addEventListener('click',e=>e.stopPropagation());
+      card.appendChild(ts);
+      if(isActive&&!isDone) requestAnimationFrame(()=>setupDrag(i,d));
+    }
 
     row.appendChild(spine);row.appendChild(card);
     flow.appendChild(row);
@@ -417,7 +472,14 @@ function updateFuzzy(times){
 
 // ── DONE TOGGLE ──
 function toggleDone(i){
-  doneState[i]=!doneState[i];
+  if(!doneState[i] && i < unlockedCount){
+    // completing an active card: unlock one more
+    unlockedCount = Math.min(flowBlocks.length, unlockedCount + 1);
+  } else if(doneState[i] && i < unlockedCount && unlockedCount > INITIAL_ACTIVE){
+    // unchecking an active card: re-lock the last one
+    unlockedCount--;
+  }
+  doneState[i] = !doneState[i];
   render();
 }
 
@@ -454,10 +516,12 @@ function setWake(mins, btn){
 
 // ── PROGRESS ──
 function updateProg(){
-  const fixed=flowBlocks.filter(d=>!d.fz).length;
-  const cnt=doneState.filter((v,i)=>v&&!flowBlocks[i].fz).length;
-  document.getElementById('pc').textContent=cnt+' / '+fixed;
-  document.getElementById('pf').style.width=Math.round(cnt/fixed*100)+'%';
+  const total = flowBlocks.length;
+  const cnt = doneState.filter(Boolean).length;
+  const pct = total ? Math.round(cnt/total*100) : 0;
+  document.getElementById('pc').textContent = cnt+' / '+total;
+  document.getElementById('pf').style.width = pct+'%';
+  document.getElementById('gpf').style.width = pct+'%';
 }
 
 // ── CHECKLIST ──
@@ -488,6 +552,7 @@ function setupLibDrop(){
     flowBlocks.splice(idx,1);
     doneState.splice(idx,1);
     pdoneState.splice(idx,1);
+    if(idx < unlockedCount) unlockedCount = Math.max(INITIAL_ACTIVE, unlockedCount - 1);
     draggingFlowIdx = -1;
     renderLib();
     render();
@@ -500,6 +565,7 @@ function resetAll(){
   doneState=flowBlocks.map(()=>false);
   pdoneState=flowBlocks.map(d=>d.pills.map(()=>false));
   parkedBlocks=[];
+  unlockedCount = INITIAL_ACTIVE;
   document.getElementById('ti').value='';
   document.getElementById('ts').style.display='none';
   document.querySelectorAll('.clrow').forEach(r=>{r.classList.remove('done');r.querySelector('.clbox').classList.remove('on')});
