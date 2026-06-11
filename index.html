@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ffffff">
+<title>每日系统</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#fff;--bg2:#f5f4f0;--bg3:#eeecea;
+  --text:#1a1a1a;--text2:#6b6b6b;--text3:#9e9e9e;
+  --border:rgba(0,0,0,0.1);--border2:rgba(0,0,0,0.18);
+  --purple:#7F77DD;--purple-bg:#EEEDFE;--purple-text:#3C3489;
+  --teal:#1D9E75;--teal-bg:#E1F5EE;--teal-text:#085041;
+  --amber:#BA7517;--amber-bg:#FAEEDA;
+  --coral:#D85A30;--blue:#378ADD;--gray:#888780;
+  --radius:12px;--radius-sm:8px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1a1a1a;--bg2:#242424;--bg3:#2e2e2e;
+    --text:#f0f0f0;--text2:#a0a0a0;--text3:#666;
+    --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.2);
+    --purple-bg:#2a2850;--purple-text:#AFA9EC;
+    --teal-bg:#0d2e22;--teal-text:#5DCAA5;
+    --amber-bg:#2e2010;
+  }
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:40px}
+.app{max-width:480px;margin:0 auto;padding:20px 16px}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.toptitle{font-size:14px;font-weight:600;color:var(--text)}
+.wpills{display:flex;gap:4px}
+.wp{font-size:11px;padding:3px 10px;border-radius:99px;border:0.5px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.wp.on{background:var(--purple-bg);border-color:var(--purple);color:var(--purple-text)}
+
+.prow{display:flex;justify-content:space-between;margin-bottom:5px}
+.plabel{font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
+.pcount{font-size:11px;color:var(--text3)}
+.pbar{height:2px;background:var(--border);border-radius:99px;margin-bottom:20px}
+.pfill{height:100%;background:var(--teal);border-radius:99px;transition:width .3s}
+
+.flow{display:flex;flex-direction:column}
+.brow{display:flex;align-items:stretch}
+.spine{width:28px;flex-shrink:0;display:flex;flex-direction:column;align-items:center}
+.sdot{width:10px;height:10px;border-radius:50%;margin-top:17px;flex-shrink:0}
+.sline{width:1.5px;flex:1;background:var(--border);margin-top:3px}
+
+.card{flex:1;margin-bottom:12px;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card.done{opacity:.5}
+.chead{padding:12px 14px 0}
+.trig{font-size:11px;color:var(--text3);margin-bottom:3px}
+.ctitle{font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.chk{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--border2);flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.chk.on{background:var(--teal);border-color:var(--teal)}
+.chk.on::after{content:'';width:5px;height:9px;border:2px solid #fff;border-top:none;border-left:none;transform:rotate(45deg) translateY(-1px);display:block}
+
+.pills{display:flex;flex-wrap:wrap;gap:5px;padding:0 14px 10px}
+.pill{font-size:12px;padding:4px 11px;border-radius:99px;border:0.5px solid var(--border);color:var(--text2);background:var(--bg2);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .1s}
+.pill.done{text-decoration:line-through;opacity:.3}
+
+.rule{font-size:12px;color:var(--text3);padding:7px 10px;margin:0 14px 10px;background:var(--bg2);border-radius:var(--radius-sm);border-left:2px solid var(--border2)}
+
+.tstrip{padding:8px 14px;border-top:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:6px}
+.tval{font-size:12px;font-weight:600;color:var(--text)}
+.tsub{font-size:11px;color:var(--text3)}
+.tdur{font-size:11px;color:var(--text3);margin-left:auto}
+
+.dzone{padding:10px 14px 14px;border-top:0.5px solid var(--border)}
+.dlabel{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:8px}
+.dval{font-size:11px;font-weight:600;color:var(--text)}
+.track{height:5px;background:var(--bg3);border-radius:99px;position:relative;cursor:pointer}
+.dfill{height:100%;border-radius:99px;background:var(--purple)}
+.dthumb{width:20px;height:20px;border-radius:50%;background:var(--bg);border:2px solid var(--purple);position:absolute;top:-7px;transform:translateX(-50%);cursor:ew-resize;touch-action:none;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+
+.fstrip{padding:8px 14px 12px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:6px}
+.ftime{font-size:12px;font-weight:600;color:var(--text2)}
+
+.sep{height:1px;background:var(--border);margin:12px 0 18px}
+
+.clhead{font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px}
+.clrow{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.clrow:last-of-type{border-bottom:none}
+.clbox{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.clbox.on{background:var(--teal);border-color:var(--teal)}
+.clbox.on::after{content:'';width:5px;height:9px;border:2px solid #fff;border-top:none;border-left:none;transform:rotate(45deg) translateY(-1px);display:block}
+.cllabel{font-size:13px;color:var(--text)}
+.clrow.done .cllabel{text-decoration:line-through;color:var(--text3)}
+
+.tinp{width:100%;font-size:13px;padding:10px 12px;border-radius:var(--radius-sm);border:0.5px solid var(--border2);background:var(--bg);color:var(--text);margin-top:14px;outline:none}
+.tinp:focus{border-color:var(--purple)}
+.tinp::placeholder{color:var(--text3)}
+.tsaved{margin-top:8px;font-size:13px;padding:9px 13px;background:var(--teal-bg);border-radius:var(--radius-sm);color:var(--teal-text);border-left:2px solid var(--teal);display:none}
+
+.bbar{display:flex;justify-content:flex-end;margin-top:18px}
+.rbtn{font-size:12px;color:var(--text3);border:none;background:none;cursor:pointer;padding:4px 0}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <span class="toptitle">今日顺序</span>
+    <div class="wpills">
+      <button class="wp" onclick="setWake(8,this)">8:00</button>
+      <button class="wp" onclick="setWake(9,this)">9:00</button>
+      <button class="wp on" onclick="setWake(10,this)">10:00</button>
+    </div>
+  </div>
+  <div class="prow"><span class="plabel">完成进度</span><span class="pcount" id="pc">0 / 4</span></div>
+  <div class="pbar"><div class="pfill" id="pf" style="width:0%"></div></div>
+  <div class="flow" id="flow"></div>
+  <div class="sep"></div>
+  <div class="clhead">🌙 睡前清单</div>
+  <div class="clrow" onclick="toggleCl(this)"><div class="clbox"></div><span class="cllabel">背包：电脑、充电器、耳机、水杯</span></div>
+  <div class="clrow" onclick="toggleCl(this)"><div class="clbox"></div><span class="cllabel">运动服已放进包里</span></div>
+  <div class="clrow" onclick="toggleCl(this)"><div class="clbox"></div><span class="cllabel">酸奶在冰箱，麦片在桌上</span></div>
+  <div class="clrow" onclick="toggleCl(this)"><div class="clbox"></div><span class="cllabel">明天第一件事已写下</span></div>
+  <input class="tinp" id="ti" placeholder="明天坐下第一件事是…" oninput="saveTmr()">
+  <div class="tsaved" id="ts"></div>
+  <div class="bbar"><button class="rbtn" onclick="resetAll()">重置今日</button></div>
+</div>
+
+<script>
+const DOTS=['#7F77DD','#1D9E75','#1D9E75','#BA7517','#888780','#D85A30','#378ADD'];
+const DEFS=[
+  {name:'固定早餐',    trig:'起床后 → 立刻触发',    pills:['高蛋白酸奶','麦片','喝水'],                  rule:'5分钟吃完，不开电脑不刷手机',     dur:15,mn:5,  mx:25, fz:false},
+  {name:'出门去咖啡馆',trig:'早餐后 → 15分钟内出门', pills:['背包已备好','运动服在包里','充电器','水杯'],  rule:'坐下即开始，不选位置不点单先',    dur:10,mn:5,  mx:20, fz:false},
+  {name:'求职深度块',  trig:'坐下 → 立刻开始',       pills:['有截止日期的优先','冷邮件/接触','材料打磨'],  rule:'90分钟底线，状态好就继续，不谈判',dur:100,mn:60,mx:200,fz:false},
+  {name:'午餐',        trig:'深度块结束后',           pills:['蛋白质','蔬菜','一种碳水（不叠加）'],        rule:null,                              dur:45,mn:20, mx:75, fz:false},
+  {name:'轻任务',      trig:'顺序到了自然开始',       pills:['scraper维护','回邮件','刷职位'],             rule:null,                              dur:90,mn:30, mx:180,fz:true},
+  {name:'健身',        trig:'晚饭前 → 换衣服出门',   pills:['换运动服（外面换）','走路5分钟'],            rule:'换衣服=出发信号，不思考',         dur:60,mn:30, mx:90, fz:true},
+  {name:'晚饭 + 补剂', trig:'健身后',                 pills:['蛋白质优先','碳水减半','镁·Omega-3'],        rule:null,                              dur:45,mn:30, mx:60, fz:true},
+];
+
+const STORAGE_KEY='daily-system-v1';
+let wakeMin=10*60;
+let durs=DEFS.map(d=>d.dur);
+let done=DEFS.map(()=>false);
+let pdone=DEFS.map(d=>d.pills.map(()=>false));
+
+function hm(m){return String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+function getTimes(){let c=wakeMin;return DEFS.map((_,i)=>{const s=c;c+=durs[i];return{s,e:c}})}
+
+function save(){
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify({wakeMin,durs,done,pdone,tomorrow:document.getElementById('ti').value}))}catch(e){}
+}
+function load(){
+  try{
+    const d=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');
+    if(!d)return;
+    const today=new Date().toDateString();
+    if(d.date!==today){return;}
+    wakeMin=d.wakeMin||wakeMin;
+    if(d.durs)durs=d.durs;
+    if(d.done)done=d.done;
+    if(d.pdone)pdone=d.pdone;
+    if(d.tomorrow)document.getElementById('ti').value=d.tomorrow;
+    const h=Math.round(wakeMin/60);
+    document.querySelectorAll('.wp').forEach(b=>b.classList.remove('on'));
+    document.querySelectorAll('.wp').forEach(b=>{if(b.textContent.startsWith(h+':'))b.classList.add('on')});
+  }catch(e){}
+}
+
+function setWake(h,btn){
+  document.querySelectorAll('.wp').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  wakeMin=h*60; render(); save();
+}
+
+function render(){
+  const times=getTimes();
+  const flow=document.getElementById('flow');
+  flow.innerHTML='';
+  DEFS.forEach((d,i)=>{
+    const{s,e}=times[i];
+    const row=document.createElement('div');row.className='brow';
+    const spine=document.createElement('div');spine.className='spine';
+    const dot=document.createElement('div');dot.className='sdot';dot.style.background=DOTS[i];
+    const line=document.createElement('div');line.className='sline';
+    spine.appendChild(dot);spine.appendChild(line);
+
+    const card=document.createElement('div');card.className='card'+(done[i]?' done':'');
+    const head=document.createElement('div');head.className='chead';
+    head.innerHTML=`<div class="trig">${d.trig}</div><div class="ctitle"><div class="chk ${done[i]?'on':''}" data-i="${i}"></div>${d.name}</div>`;
+    head.querySelector('.chk').addEventListener('click',()=>{done[i]=!done[i];render();save()});
+    card.appendChild(head);
+
+    const pillsEl=document.createElement('div');pillsEl.className='pills';
+    d.pills.forEach((p,pi)=>{
+      const pl=document.createElement('span');pl.className='pill'+(pdone[i][pi]?' done':'');
+      pl.textContent=p;
+      pl.addEventListener('click',()=>{pdone[i][pi]=!pdone[i][pi];render();save()});
+      pillsEl.appendChild(pl);
+    });
+    card.appendChild(pillsEl);
+
+    if(d.rule){const r=document.createElement('div');r.className='rule';r.textContent=d.rule;card.appendChild(r);}
+
+    if(!d.fz){
+      const ts=document.createElement('div');ts.className='tstrip';ts.id='ts'+i;
+      ts.innerHTML=`<span class="tval">${hm(s)}</span><span class="tsub">→</span><span class="tval">${hm(e)}</span><span class="tdur">${durs[i]}分钟</span>`;
+      card.appendChild(ts);
+      const pct=Math.round(((durs[i]-d.mn)/(d.mx-d.mn))*100);
+      const dz=document.createElement('div');dz.className='dzone';
+      dz.innerHTML=`<div class="dlabel"><span>拖动记录实际时长</span><span class="dval" id="dl${i}">${durs[i]}分钟</span></div>
+        <div class="track" id="tr${i}"><div class="dfill" id="df${i}" style="width:${pct}%"></div><div class="dthumb" id="dt${i}" style="left:${pct}%"></div></div>`;
+      card.appendChild(dz);
+      requestAnimationFrame(()=>setupDrag(i,d));
+    } else {
+      const fs=document.createElement('div');fs.className='fstrip';
+      fs.innerHTML=`<span style="font-size:13px">🕐</span><span class="tsub">预计</span><span class="ftime">${hm(s)} 左右</span><span class="tsub" style="margin-left:auto">顺序到了自然开始</span>`;
+      card.appendChild(fs);
+    }
+    row.appendChild(spine);row.appendChild(card);
+    flow.appendChild(row);
+  });
+  updateProg();
+}
+
+function setupDrag(i,d){
+  const track=document.getElementById('tr'+i);
+  const fill=document.getElementById('df'+i);
+  const thumb=document.getElementById('dt'+i);
+  const lbl=document.getElementById('dl'+i);
+  if(!track)return;
+  function upd(cx){
+    const rect=track.getBoundingClientRect();
+    const pct=Math.max(0,Math.min(1,(cx-rect.left)/rect.width));
+    const nd=Math.round((d.mn+pct*(d.mx-d.mn))/5)*5;
+    durs[i]=nd;
+    const dp=Math.round(((nd-d.mn)/(d.mx-d.mn))*100);
+    fill.style.width=dp+'%';thumb.style.left=dp+'%';lbl.textContent=nd+'分钟';
+    const times=getTimes();const{s,e}=times[i];
+    const ts=document.getElementById('ts'+i);
+    if(ts)ts.innerHTML=`<span class="tval">${hm(s)}</span><span class="tsub">→</span><span class="tval">${hm(e)}</span><span class="tdur">${nd}分钟</span>`;
+    updateFuzzy(times);save();
+  }
+  thumb.addEventListener('mousedown',e=>{
+    e.preventDefault();
+    const mv=ev=>upd(ev.clientX);
+    const up=()=>{document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up)};
+    document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
+  });
+  thumb.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    const mv=ev=>upd(ev.touches[0].clientX);
+    const up=()=>{document.removeEventListener('touchmove',mv);document.removeEventListener('touchend',up)};
+    document.addEventListener('touchmove',mv,{passive:false});document.addEventListener('touchend',up);
+  });
+  track.addEventListener('click',e=>{if(e.target!==thumb)upd(e.clientX)});
+}
+
+function updateFuzzy(times){
+  let fi=0;
+  document.querySelectorAll('.fstrip').forEach(el=>{
+    while(fi<DEFS.length&&!DEFS[fi].fz)fi++;
+    if(fi<times.length){const ft=el.querySelector('.ftime');if(ft)ft.textContent=hm(times[fi].s)+' 左右';fi++;}
+  });
+}
+
+function updateProg(){
+  const fixed=DEFS.filter(d=>!d.fz).length;
+  const cnt=done.filter((v,i)=>v&&!DEFS[i].fz).length;
+  document.getElementById('pc').textContent=cnt+' / '+fixed;
+  document.getElementById('pf').style.width=Math.round(cnt/fixed*100)+'%';
+}
+
+function toggleCl(row){row.classList.toggle('done');row.querySelector('.clbox').classList.toggle('on');save()}
+function saveTmr(){const v=document.getElementById('ti').value.trim();const s=document.getElementById('ts');if(v){s.textContent='✓ '+v;s.style.display='block';}else s.style.display='none';save();}
+function resetAll(){
+  durs=DEFS.map(d=>d.dur);done=DEFS.map(()=>false);pdone=DEFS.map(d=>d.pills.map(()=>false));
+  document.getElementById('ti').value='';document.getElementById('ts').style.display='none';
+  document.querySelectorAll('.clrow').forEach(r=>{r.classList.remove('done');r.querySelector('.clbox').classList.remove('on')});
+  render();save();
+}
+
+load(); render();
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
