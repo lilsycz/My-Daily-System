@@ -77,7 +77,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .ccheck.on::after{content:'';width:4px;height:8px;border:2px solid #fff;border-top:none;border-left:none;transform:rotate(45deg) translateY(-1px);display:block}
 
 .pills{display:flex;flex-wrap:wrap;gap:5px;padding:0 17px 13px}
-.pill{font-size:12px;padding:4px 11px;border-radius:99px;border:0.5px solid var(--border);color:var(--text2);background:var(--bg2)}
+.pill{font-size:12px;padding:4px 11px;border-radius:99px;border:0.5px solid var(--border);color:var(--text2);background:var(--bg2);transition:opacity .15s}
+.pill.done{text-decoration:line-through;opacity:.4}
 
 .rule{font-size:12px;color:var(--text3);padding:7px 11px;margin:0 17px 13px;background:var(--bg2);border-radius:6px;border-left:2px solid var(--border2)}
 
@@ -89,11 +90,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .tsub{font-size:11px;color:var(--text3);position:relative}
 .tdur{font-size:12px;color:var(--text3);margin-left:auto;position:relative;opacity:0.6}
 
-.fstrip{padding:11px 17px 14px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:5px}
-.ftime{font-size:13px;font-weight:600;color:var(--text2)}
 
 /* drop zone highlight */
 .drop-active{border:1.5px dashed var(--teal) !important;background:rgba(29,158,117,.05)}
+.card.dragging{opacity:.25}
+.lib.lib-dropzone{background:rgba(29,158,117,.09);border-right-color:var(--teal)}
 
 /* ── CHECKLIST ── */
 .checklist{padding:0 12px 32px}
@@ -190,6 +191,7 @@ let wakeMin = 570;
 let flowBlocks = DEFAULT_FLOW.map(d=>({...d}));
 let doneState = flowBlocks.map(()=>false);
 let pdoneState = flowBlocks.map(d=>d.pills.map(()=>false));
+let draggingFlowIdx = -1;
 
 // ── CLOCK ──
 function updateClock(){
@@ -271,6 +273,7 @@ function render(){
     const card = document.createElement('div');
     card.className = 'card' + (isActive&&!isDone?' active':'') + (isDone?' done':'') + (isDim?' dim':'');
     if(isActive && !isDone) card.style.borderColor = dotColor;
+    card.style.minHeight = (60 + d.dur * 0.75) + 'px';
 
     // click card to toggle done
     card.addEventListener('click', e=>{
@@ -278,8 +281,24 @@ function render(){
       toggleDone(i);
     });
 
+    // drag card out to lib
+    card.draggable = true;
+    card.addEventListener('dragstart', e=>{
+      draggingFlowIdx = i;
+      e.dataTransfer.setData('flowIdx', String(i));
+      e.dataTransfer.effectAllowed = 'move';
+      requestAnimationFrame(()=>card.classList.add('dragging'));
+    });
+    card.addEventListener('dragend', ()=>{
+      draggingFlowIdx = -1;
+      card.classList.remove('dragging');
+    });
+
     // drag-over for lib blocks
-    card.addEventListener('dragover', e=>{e.preventDefault();card.classList.add('drop-active')});
+    card.addEventListener('dragover', e=>{
+      if(draggingFlowIdx !== -1) return;
+      e.preventDefault();card.classList.add('drop-active');
+    });
     card.addEventListener('dragleave', ()=>card.classList.remove('drop-active'));
     card.addEventListener('drop', e=>{
       card.classList.remove('drop-active');
@@ -296,8 +315,14 @@ function render(){
     if(d.pills && d.pills.length){
       const pillsEl = document.createElement('div');pillsEl.className='pills';
       d.pills.forEach((p,pi)=>{
-        const pl = document.createElement('span');pl.className='pill';pl.textContent=p;
-        pl.addEventListener('click',e=>{e.stopPropagation();pdoneState[i][pi]=!pdoneState[i][pi];});
+        const pl = document.createElement('span');
+        pl.className='pill'+(pdoneState[i][pi]?' done':'');
+        pl.textContent=p;
+        pl.addEventListener('click',e=>{
+          e.stopPropagation();
+          pdoneState[i][pi]=!pdoneState[i][pi];
+          pl.classList.toggle('done',pdoneState[i][pi]);
+        });
         pillsEl.appendChild(pl);
       });
       card.appendChild(pillsEl);
@@ -307,25 +332,18 @@ function render(){
       const r=document.createElement('div');r.className='rule';r.textContent=d.rule;card.appendChild(r);
     }
 
-    if(!d.fz){
-      const pct = Math.min(100, Math.round(((d.dur-d.mn)/(d.mx-d.mn))*100));
-      const ts = document.createElement('div');
-      ts.className = 'tstrip' + (isActive&&!isDone?' draggable':'');
-      ts.id = 'ts'+i;
-      const fillEl = document.createElement('div');
-      fillEl.className='tstrip-fill';fillEl.id='tf'+i;
-      fillEl.style.cssText=`width:${pct}%;background:${DOTS[i%DOTS.length]};opacity:0.13`;
-      ts.appendChild(fillEl);
-      ts.insertAdjacentHTML('beforeend',`<span class="tval">${hm(s)}</span><span class="tsub">→</span><span class="tval" id="te${i}">${hm(e)}</span><span class="tdur" id="dl${i}">${d.dur}分钟</span>`);
-      // stop tstrip clicks from toggling card
-      ts.addEventListener('click',e=>e.stopPropagation());
-      card.appendChild(ts);
-      if(isActive&&!isDone) requestAnimationFrame(()=>setupDrag(i,d));
-    } else {
-      const fs=document.createElement('div');fs.className='fstrip';
-      fs.innerHTML=`<span style="font-size:12px">🕐</span><span class="tsub">预计</span><span class="ftime">${hm(s)} 左右</span><span class="tsub" style="margin-left:auto">顺序到了自然开始</span>`;
-      card.appendChild(fs);
-    }
+    const pct = Math.min(100, Math.round(((d.dur-d.mn)/(d.mx-d.mn))*100));
+    const ts = document.createElement('div');
+    ts.className = 'tstrip' + (isActive&&!isDone?' draggable':'');
+    ts.id = 'ts'+i;
+    const fillEl = document.createElement('div');
+    fillEl.className='tstrip-fill';fillEl.id='tf'+i;
+    fillEl.style.cssText=`width:${pct}%;background:${DOTS[i%DOTS.length]};opacity:0.13`;
+    ts.appendChild(fillEl);
+    ts.insertAdjacentHTML('beforeend',`<span class="tval" id="tstart${i}">${hm(s)}</span><span class="tsub">→</span><span class="tval" id="te${i}">${hm(e)}</span><span class="tdur" id="dl${i}">${d.dur}分钟</span>`);
+    ts.addEventListener('click',e=>e.stopPropagation());
+    card.appendChild(ts);
+    if(isActive&&!isDone) requestAnimationFrame(()=>setupDrag(i,d));
 
     row.appendChild(spine);row.appendChild(card);
     flow.appendChild(row);
@@ -342,6 +360,7 @@ function setupDrag(i,d){
   const endEl=document.getElementById('te'+i);
   if(!ts) return;
 
+  const cardEl = ts.closest('.card');
   function upd(cx){
     const rect=ts.getBoundingClientRect();
     const pct=Math.max(0,Math.min(1,(cx-rect.left)/rect.width));
@@ -350,6 +369,7 @@ function setupDrag(i,d){
     const dp=Math.round(((nd-d.mn)/(d.mx-d.mn))*100);
     if(fill) fill.style.width=dp+'%';
     if(lbl) lbl.textContent=nd+'分钟';
+    if(cardEl) cardEl.style.minHeight=(60+nd*0.75)+'px';
     const times=getTimes();const{e}=times[i];
     if(endEl) endEl.textContent=hm(e);
     updateFuzzy(times);
@@ -372,10 +392,9 @@ function setupDrag(i,d){
 }
 
 function updateFuzzy(times){
-  let fi=0;
-  document.querySelectorAll('.fstrip').forEach(el=>{
-    while(fi<flowBlocks.length&&!flowBlocks[fi].fz)fi++;
-    if(fi<times.length){const ft=el.querySelector('.ftime');if(ft)ft.textContent=hm(times[fi].s)+' 左右';fi++;}
+  times.forEach(({s},j)=>{
+    const el=document.getElementById('tstart'+j);
+    if(el) el.textContent=hm(s);
   });
 }
 
@@ -422,6 +441,29 @@ function saveTmr(){
   if(v){s.textContent='✓ '+v;s.style.display='block';}else s.style.display='none';
 }
 
+// ── LIB DROP ZONE ──
+function setupLibDrop(){
+  const lib = document.getElementById('lib');
+  lib.addEventListener('dragover', e=>{
+    if(draggingFlowIdx === -1) return;
+    e.preventDefault();
+    lib.classList.add('lib-dropzone');
+  });
+  lib.addEventListener('dragleave', e=>{
+    if(!lib.contains(e.relatedTarget)) lib.classList.remove('lib-dropzone');
+  });
+  lib.addEventListener('drop', e=>{
+    lib.classList.remove('lib-dropzone');
+    const idx = draggingFlowIdx;
+    if(idx === -1) return;
+    flowBlocks.splice(idx,1);
+    doneState.splice(idx,1);
+    pdoneState.splice(idx,1);
+    draggingFlowIdx = -1;
+    render();
+  });
+}
+
 // ── RESET ──
 function resetAll(){
   flowBlocks=DEFAULT_FLOW.map(d=>({...d}));
@@ -435,6 +477,7 @@ function resetAll(){
 
 // ── INIT ──
 renderLib();
+setupLibDrop();
 render();
 
 if('serviceWorker' in navigator){
