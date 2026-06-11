@@ -192,6 +192,7 @@ let flowBlocks = DEFAULT_FLOW.map(d=>({...d}));
 let doneState = flowBlocks.map(()=>false);
 let pdoneState = flowBlocks.map(d=>d.pills.map(()=>false));
 let draggingFlowIdx = -1;
+let parkedBlocks = [];
 
 // ── CLOCK ──
 function updateClock(){
@@ -246,6 +247,23 @@ function renderLib(){
     });
     lib.appendChild(el);
   });
+
+  if(parkedBlocks.length){
+    const sep = document.createElement('div');
+    sep.style.cssText='height:0.5px;background:var(--border);margin:4px 2px';
+    lib.appendChild(sep);
+    parkedBlocks.forEach((b,pi)=>{
+      const el = document.createElement('div');
+      el.className = 'lib-block';
+      el.draggable = true;
+      el.innerHTML = `<div class="lib-dot" style="background:${b._dotColor||'#888'}"></div>${b.name}`;
+      el.addEventListener('dragstart', e=>{
+        e.dataTransfer.setData('parkedIdx', String(pi));
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      lib.appendChild(el);
+    });
+  }
 }
 
 // ── RENDER FLOW ──
@@ -302,8 +320,9 @@ function render(){
     card.addEventListener('drop', e=>{
       card.classList.remove('drop-active');
       const libIdx = parseInt(e.dataTransfer.getData('libIdx'));
-      if(isNaN(libIdx)) return;
-      insertLibBlock(libIdx, i);
+      const parkedIdx = parseInt(e.dataTransfer.getData('parkedIdx'));
+      if(!isNaN(libIdx)) { insertLibBlock(libIdx, i); return; }
+      if(!isNaN(parkedIdx)) { insertParkedBlock(parkedIdx, i); return; }
     });
 
     const head = document.createElement('div');head.className='chead';
@@ -402,6 +421,16 @@ function toggleDone(i){
   render();
 }
 
+// ── INSERT PARKED BLOCK ──
+function insertParkedBlock(parkedIdx, afterIdx){
+  const pb = parkedBlocks.splice(parkedIdx, 1)[0];
+  flowBlocks.splice(afterIdx+1, 0, pb);
+  doneState.splice(afterIdx+1, 0, false);
+  pdoneState.splice(afterIdx+1, 0, (pb.pills||[]).map(()=>false));
+  renderLib();
+  render();
+}
+
 // ── INSERT LIB BLOCK ──
 function insertLibBlock(libIdx, afterIdx){
   const lb = LIB_BLOCKS[libIdx];
@@ -454,10 +483,13 @@ function setupLibDrop(){
     lib.classList.remove('lib-dropzone');
     const idx = draggingFlowIdx;
     if(idx === -1) return;
+    const block = {...flowBlocks[idx], _dotColor: DOTS[idx % DOTS.length]};
+    parkedBlocks.push(block);
     flowBlocks.splice(idx,1);
     doneState.splice(idx,1);
     pdoneState.splice(idx,1);
     draggingFlowIdx = -1;
+    renderLib();
     render();
   });
 }
@@ -467,6 +499,7 @@ function resetAll(){
   flowBlocks=DEFAULT_FLOW.map(d=>({...d}));
   doneState=flowBlocks.map(()=>false);
   pdoneState=flowBlocks.map(d=>d.pills.map(()=>false));
+  parkedBlocks=[];
   document.getElementById('ti').value='';
   document.getElementById('ts').style.display='none';
   document.querySelectorAll('.clrow').forEach(r=>{r.classList.remove('done');r.querySelector('.clbox').classList.remove('on')});
