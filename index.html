@@ -273,7 +273,6 @@ function render(){
     const card = document.createElement('div');
     card.className = 'card' + (isActive&&!isDone?' active':'') + (isDone?' done':'') + (isDim?' dim':'');
     if(isActive && !isDone) card.style.borderColor = dotColor;
-    card.style.minHeight = (60 + d.dur * 0.75) + 'px';
 
     // click card to toggle done
     card.addEventListener('click', e=>{
@@ -369,7 +368,6 @@ function setupDrag(i,d){
     const dp=Math.round(((nd-d.mn)/(d.mx-d.mn))*100);
     if(fill) fill.style.width=dp+'%';
     if(lbl) lbl.textContent=nd+'分钟';
-    if(cardEl) cardEl.style.minHeight=(60+nd*0.75)+'px';
     const times=getTimes();const{e}=times[i];
     if(endEl) endEl.textContent=hm(e);
     updateFuzzy(times);
