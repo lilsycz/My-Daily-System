@@ -549,7 +549,8 @@ function setupLibDrop(){
     const idx = draggingFlowIdx;
     if(idx === -1) return;
     const block = {...flowBlocks[idx], _dotColor: DOTS[idx % DOTS.length]};
-    parkedBlocks.push(block);
+    const duplicate = parkedBlocks.some(b=>b.name===block.name) || LIB_BLOCKS.some(b=>b.name===block.name);
+    if(!duplicate) parkedBlocks.push(block);
     flowBlocks.splice(idx,1);
     doneState.splice(idx,1);
     pdoneState.splice(idx,1);
