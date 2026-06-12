@@ -554,7 +554,6 @@ function setupLibDrop(){
     flowBlocks.splice(idx,1);
     doneState.splice(idx,1);
     pdoneState.splice(idx,1);
-    if(idx < unlockedCount) unlockedCount = Math.max(INITIAL_ACTIVE, unlockedCount - 1);
     draggingFlowIdx = -1;
     renderLib();
     render();
